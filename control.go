@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strings"
@@ -15,6 +16,7 @@ var (
 // TCPServer simple tcp server for commands
 func TCPServer(ircbot *Bot) {
 	ln, err := net.Listen("tcp", ":"+TCPPort)
+	log.Println("TCP Server listening on port", TCPPort)
 	if err != nil {
 		fmt.Println("Error listening:", err.Error())
 		os.Exit(1)
@@ -42,7 +44,6 @@ func handleRequest(conn net.Conn, ircbot *Bot) {
 		handleMessage(message, ircbot)
 		conn.Write([]byte("Message received"))
 	} else if message == "AUTH "+TCPPass {
-
 		auth = append(auth, remoteAddrIP[0])
 		fmt.Println(auth)
 		conn.Write([]byte("Authenticated\r\n"))
@@ -62,15 +63,16 @@ func stringInSlice(a string, list []string) bool {
 
 func handleMessage(message string, ircbot *Bot) {
 	fmt.Println(message)
-	if strings.Contains(message, "JOIN ") {
-		joinComm := strings.Split(message, "JOIN ")
-		channels := strings.Split(joinComm[1], " ")
-		go ircbot.HandleJoin(channels)
-	} else if strings.Contains(message, "PRIVMSG ") {
-		privmsgComm := strings.Split(message, "PRIVMSG ")
-		remainingString := strings.Split(privmsgComm[1], " :")
-		channel := remainingString[0]
-		message := remainingString[1]
-		go ircbot.Message(channel, message)
-	}
+	ircbot.WriteToAllConns(message)
+	// if strings.Contains(message, "JOIN ") {
+	// 	joinComm := strings.Split(message, "JOIN ")
+	// 	channels := strings.Split(joinComm[1], " ")
+	// 	go ircbot.HandleJoin(channels)
+	// } else if strings.Contains(message, "PRIVMSG ") {
+	// 	privmsgComm := strings.Split(message, "PRIVMSG ")
+	// 	remainingString := strings.Split(privmsgComm[1], " :")
+	// 	channel := remainingString[0]
+	// 	message := remainingString[1]
+	// 	go ircbot.Message(channel, message)
+	// }
 }

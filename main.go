@@ -27,53 +27,14 @@ func NewBot() *Bot {
 	}
 }
 
-// Add a new connection
-func (bot *Bot) CreateConnection() (conn net.Conn, err error) {
-	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
+// CreateConnection Add a new connection
+func (bot *Bot) CreateConnection() {
+	conn, err := net.Dial("tcp", bot.server+":"+bot.port)
 	if err != nil {
 		log.Fatal("unable to connect to IRC server ", err)
-		return nil, err
 	}
-	fmt.Fprintf(conn, "PASS %s\r\n", BotPass)
-	fmt.Fprintf(conn, "USER %s\r\n", BotNick)
-	fmt.Fprintf(conn, "NICK %s\r\n", BotNick)
-	fmt.Fprintf(conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
-	fmt.Fprintf(conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
 	log.Printf("Connected to IRC server %s (%s)\n", bot.server, conn.RemoteAddr())
-	return conn, nil
-}
-
-// Connect basic connection
-/*
-func (bot *Bot) Connect() (conn net.Conn, err error) {
-	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
-	if err != nil {
-		log.Fatal("unable to connect to IRC server ", err)
-	}
-	bot.conn = conn
-	fmt.Fprintf(bot.conn, "PASS %s\r\n", BotPass)
-	fmt.Fprintf(bot.conn, "USER %s\r\n", BotNick)
-	fmt.Fprintf(bot.conn, "NICK %s\r\n", BotNick)
-	fmt.Fprintf(bot.conn, "CAP REQ :twitch.tv/tags\r\n")     // enable ircv3 tags
-	fmt.Fprintf(bot.conn, "CAP REQ :twitch.tv/commands\r\n") // enable roomstate and such
-	log.Printf("Connected to IRC server %s (%s)\n", bot.server, bot.conn.RemoteAddr())
-	return bot.conn, nil
-}
-*/
-
-func main() {
-	ircbot := NewBot()
-	go TCPServer(ircbot)
-	/*
-		conn, _ := ircbot.Connect()
-		defer conn.Close()
-	*/
-	conn, err := ircbot.CreateConnection()
-	fmt.Printf("conn:%s\n", conn)
-	fmt.Printf("err:%s\n", err)
-	ircbot.connlist = append(ircbot.connlist, conn)
-	fmt.Printf("connlist:%s\n", ircbot.connlist)
-	defer conn.Close()
+	bot.connlist = append(bot.connlist, conn)
 
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
@@ -86,9 +47,13 @@ func main() {
 			pongdata := strings.Split(line, "PING ")
 			fmt.Fprintf(conn, "PONG %s\r\n", pongdata[1])
 		}
-		ircbot.Handle(line)
+		bot.Handle(line)
 	}
+}
 
+func main() {
+	ircbot := NewBot()
+	TCPServer(ircbot)
 }
 
 // HandleJoin will slowly join all channels given
@@ -100,6 +65,13 @@ func (bot *Bot) HandleJoin(channels []string) {
 			fmt.Println(conn)
 			fmt.Fprintf(conn, "JOIN %s\r\n", channel)
 		}
+	}
+}
+
+// WriteToAllConns writes message to all connections for now
+func (bot *Bot) WriteToAllConns(message string) {
+	for _, conn := range bot.connlist {
+		fmt.Fprintf(conn, message+"\r\n")
 	}
 }
 
